@@ -27,10 +27,17 @@ onMounted(async () => {
 
 <template>
   <Shell>
-    <div class="page">
-      <h1>问答</h1>
-      <p v-if="empty">还没有可用的人物。</p>
-      <router-link v-if="empty && session.isAdmin" to="/admin/personas">去配置人物</router-link>
+    <template #side>
+      <div class="side-label">人物</div>
+      <p class="side-empty">配置完成后会出现在这里。</p>
+    </template>
+    <div class="page center-page">
+      <p v-if="!empty" class="hint">正在打开最近的人物…</p>
+      <div v-else class="empty-state">
+        <h1>还没有可用的人物。</h1>
+        <p>管理员配置人物并完成授权后，可以从这里开始提问。</p>
+        <router-link v-if="empty && session.isAdmin" class="btn-link" to="/admin/personas">去配置人物</router-link>
+      </div>
     </div>
   </Shell>
 </template>

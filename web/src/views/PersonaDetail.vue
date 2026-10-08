@@ -160,94 +160,133 @@ onMounted(async () => {
     </template>
     <div class="page">
       <div class="page-head">
-        <h1>{{ persona.name || '人物' }}</h1>
+        <div>
+          <router-link class="crumb" to="/admin/personas">人物</router-link>
+          <h1>{{ persona.name || '人物' }}</h1>
+          <p class="lede">{{ persona.description || '设定、授权、口径和行级条件决定这个人物能回答什么。' }}</p>
+        </div>
+        <span class="pill" :class="persona.status === 1 ? 'ok' : 'off'">{{ persona.status === 1 ? '启用' : '停用' }}</span>
       </div>
       <el-tabs v-model="tab">
         <el-tab-pane label="设定" name="profile">
-          <el-form label-position="top" class="stack-form">
-            <el-form-item label="名称"><el-input v-model="persona.name" /></el-form-item>
-            <el-form-item label="说明"><el-input v-model="persona.description" type="textarea" :rows="2" /></el-form-item>
-            <el-form-item label="人物设定"><el-input v-model="persona.systemPrompt" type="textarea" :rows="4" /></el-form-item>
-            <el-form-item label="禁止事项"><el-input v-model="persona.prohibitions" type="textarea" :rows="3" /></el-form-item>
-            <el-form-item label="数据源">
-              <el-select v-model="persona.datasourceId" clearable style="width:100%" @change="loadTables">
-                <el-option v-for="item in sources" :key="item.id" :label="item.name" :value="item.id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="启用"><el-switch v-model="persona.status" :active-value="1" :inactive-value="0" /></el-form-item>
-            <el-button type="primary" :loading="saving" @click="saveProfile">保存设定</el-button>
-          </el-form>
-          <h2>当前目录</h2>
-          <pre class="evidence">{{ persona.catalogText || '尚未生成' }}</pre>
+          <div class="panel">
+            <el-form label-position="top" class="stack-form">
+              <el-form-item label="名称"><el-input v-model="persona.name" /></el-form-item>
+              <el-form-item label="说明"><el-input v-model="persona.description" type="textarea" :rows="2" /></el-form-item>
+              <el-form-item label="人物设定"><el-input v-model="persona.systemPrompt" type="textarea" :rows="4" /></el-form-item>
+              <el-form-item label="禁止事项"><el-input v-model="persona.prohibitions" type="textarea" :rows="3" /></el-form-item>
+              <el-form-item label="数据源">
+                <el-select v-model="persona.datasourceId" clearable style="width: 100%" @change="loadTables">
+                  <el-option v-for="item in sources" :key="item.id" :label="item.name" :value="item.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="启用"><el-switch v-model="persona.status" :active-value="1" :inactive-value="0" /></el-form-item>
+              <el-button type="primary" :loading="saving" @click="saveProfile">保存设定</el-button>
+            </el-form>
+          </div>
+          <div class="panel">
+            <h2>当前目录</h2>
+            <pre class="catalog">{{ persona.catalogText || '尚未生成' }}</pre>
+          </div>
         </el-tab-pane>
         <el-tab-pane label="授权" name="grants">
           <p v-if="!persona.datasourceId" class="hint">先在设定里选择数据源。</p>
           <template v-else>
-            <p v-if="grants.tables.length === 0" class="empty-copy">未授权任何表，该人物不能查询</p>
-            <el-checkbox-group v-model="grants.tables">
-              <el-checkbox v-for="item in knownTables" :key="item.name" :value="item.name">{{ item.name }}</el-checkbox>
-            </el-checkbox-group>
-            <p class="hint">隐藏的表不会出现在列表里，也不能授权。</p>
-            <h2>角色</h2>
-            <el-checkbox-group v-model="grants.roles">
-              <el-checkbox value="ADMIN">ADMIN</el-checkbox>
-              <el-checkbox value="USER">USER</el-checkbox>
-            </el-checkbox-group>
-            <p class="hint">管理员使用人物时跳过角色和用户授权。其他用户需要角色匹配；勾选用户后，只有这些用户能使用。</p>
-            <h2>用户</h2>
-            <el-checkbox-group v-model="grants.userIds">
-              <el-checkbox v-for="user in users" :key="user.id" :value="user.id">{{ user.username }}（{{ user.dept || '无部门' }}）</el-checkbox>
-            </el-checkbox-group>
-            <div style="margin-top:12px">
-              <el-button type="primary" :loading="saving" @click="saveGrants">保存授权</el-button>
+            <div class="panel">
+              <h2>表</h2>
+              <p v-if="grants.tables.length === 0" class="empty-copy">未授权任何表，该人物不能查询</p>
+              <el-checkbox-group v-model="grants.tables" class="chip-group">
+                <el-checkbox v-for="item in knownTables" :key="item.name" :value="item.name">{{ item.name }}</el-checkbox>
+              </el-checkbox-group>
+              <p class="hint">隐藏的表不会出现在列表里，也不能授权。</p>
             </div>
-            <h2>部门</h2>
-            <p class="hint">{{ deptHelp }}</p>
-            <el-table :data="users">
-              <el-table-column prop="username" label="用户" width="140" />
-              <el-table-column label="角色" width="140">
-                <template #default="{ row }">
-                  <el-select v-model="row.role">
-                    <el-option label="ADMIN" value="ADMIN" />
-                    <el-option label="USER" value="USER" />
-                  </el-select>
-                </template>
-              </el-table-column>
-              <el-table-column label="部门">
-                <template #default="{ row }"><el-input v-model="row.dept" /></template>
-              </el-table-column>
-              <el-table-column label="启用" width="80">
-                <template #default="{ row }"><el-switch v-model="row.enabled" /></template>
-              </el-table-column>
-              <el-table-column width="90">
-                <template #default="{ row }"><el-button link type="primary" @click="saveUser(row)">保存</el-button></template>
-              </el-table-column>
-            </el-table>
+            <div class="panel">
+              <h2>角色</h2>
+              <el-checkbox-group v-model="grants.roles" class="chip-group">
+                <el-checkbox value="ADMIN">ADMIN</el-checkbox>
+                <el-checkbox value="USER">USER</el-checkbox>
+              </el-checkbox-group>
+              <p class="hint">管理员使用人物时跳过角色和用户授权。其他用户需要角色匹配；勾选用户后，只有这些用户能使用。</p>
+            </div>
+            <div class="panel">
+              <h2>用户</h2>
+              <el-checkbox-group v-model="grants.userIds" class="chip-group">
+                <el-checkbox v-for="user in users" :key="user.id" :value="user.id">{{ user.username }}（{{ user.dept || '无部门' }}）</el-checkbox>
+              </el-checkbox-group>
+              <div class="actions">
+                <el-button type="primary" :loading="saving" @click="saveGrants">保存授权</el-button>
+              </div>
+            </div>
+            <div class="panel">
+              <h2>部门</h2>
+              <p class="hint">{{ deptHelp }}</p>
+              <div class="table-card">
+                <el-table :data="users">
+                  <el-table-column prop="username" label="用户" width="140" />
+                  <el-table-column label="角色" width="150">
+                    <template #default="{ row }">
+                      <el-select v-model="row.role">
+                        <el-option label="ADMIN" value="ADMIN" />
+                        <el-option label="USER" value="USER" />
+                      </el-select>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="部门">
+                    <template #default="{ row }"><el-input v-model="row.dept" /></template>
+                  </el-table-column>
+                  <el-table-column label="启用" width="80">
+                    <template #default="{ row }"><el-switch v-model="row.enabled" /></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="90">
+                    <template #default="{ row }"><el-button link type="primary" @click="saveUser(row)">保存</el-button></template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
           </template>
         </el-tab-pane>
         <el-tab-pane label="口径与示例" name="knowledge">
-          <h2>口径</h2>
-          <div v-for="(item, index) in metrics" :key="'m' + index" class="stack-form">
-            <el-input v-model="item.name" placeholder="名称" />
-            <el-input v-model="item.definition" type="textarea" :rows="2" placeholder="定义" style="margin:8px 0" />
-          </div>
-          <el-button @click="metrics.push({ name: '', definition: '', sortOrder: metrics.length })">添加口径</el-button>
-          <h2>示例</h2>
-          <div v-for="(item, index) in examples" :key="'e' + index" class="stack-form">
-            <el-input v-model="item.question" placeholder="问题" />
-            <el-input v-model="item.sql" type="textarea" :rows="2" placeholder="SQL" style="margin:8px 0" />
-          </div>
-          <el-button @click="examples.push({ question: '', sql: '', sortOrder: examples.length })">添加示例</el-button>
-          <div style="margin-top:12px">
-            <el-button type="primary" :loading="saving" @click="saveKnowledge">保存口径与示例</el-button>
+          <div class="knowledge">
+            <div class="panel">
+              <h2>口径</h2>
+              <p v-if="!metrics.length" class="hint">还没有口径。口径会写进人物目录，用来统一指标算法。</p>
+              <article v-for="(item, index) in metrics" :key="'m' + index" class="entry-card">
+                <header>
+                  <span>口径 {{ index + 1 }}</span>
+                  <el-button link type="danger" @click="metrics.splice(index, 1)">移除</el-button>
+                </header>
+                <el-input v-model="item.name" placeholder="名称" />
+                <el-input v-model="item.definition" class="entry-gap" type="textarea" :rows="2" placeholder="定义" />
+              </article>
+              <el-button @click="metrics.push({ name: '', definition: '', sortOrder: metrics.length })">添加口径</el-button>
+            </div>
+            <div class="panel">
+              <h2>示例</h2>
+              <p v-if="!examples.length" class="hint">还没有示例。示例是一对问题和对应 SQL。</p>
+              <article v-for="(item, index) in examples" :key="'e' + index" class="entry-card">
+                <header>
+                  <span>示例 {{ index + 1 }}</span>
+                  <el-button link type="danger" @click="examples.splice(index, 1)">移除</el-button>
+                </header>
+                <el-input v-model="item.question" placeholder="问题" />
+                <el-input v-model="item.sql" class="entry-gap" type="textarea" :rows="2" placeholder="SQL" />
+              </article>
+              <el-button @click="examples.push({ question: '', sql: '', sortOrder: examples.length })">添加示例</el-button>
+              <div class="actions">
+                <el-button type="primary" :loading="saving" @click="saveKnowledge">保存口径与示例</el-button>
+              </div>
+            </div>
           </div>
         </el-tab-pane>
         <el-tab-pane label="行级条件" name="filter">
-          <p class="hint">{{ filterHelp }}</p>
-          <el-input v-model="persona.rowFilter" type="textarea" :rows="4" class="stack-form" />
-          <p class="hint">当前条件：{{ persona.rowFilter || '（空）' }}</p>
-          <div style="margin-top:12px">
-            <el-button type="primary" :loading="saving" @click="saveFilter">保存行级条件</el-button>
+          <div class="panel">
+            <h2>行级条件</h2>
+            <p class="hint">{{ filterHelp }}</p>
+            <el-input v-model="persona.rowFilter" type="textarea" :rows="4" class="stack-form" />
+            <p class="hint filter-now">当前条件：{{ persona.rowFilter || '（空）' }}</p>
+            <div class="actions">
+              <el-button type="primary" :loading="saving" @click="saveFilter">保存行级条件</el-button>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import Shell from '../components/Shell.vue'
 import AdminNav from '../components/AdminNav.vue'
 import { api } from '../api'
@@ -54,6 +54,16 @@ async function create() {
 
 async function remove(row) {
   try {
+    await ElMessageBox.confirm(`删除「${row.name}」后不可恢复。`, '删除数据源', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+      confirmButtonType: 'danger',
+    })
+  } catch {
+    return
+  }
+  try {
     await api(`/api/datasources/${row.id}`, { method: 'DELETE' })
     await load()
   } catch (err) {
@@ -69,22 +79,29 @@ async function remove(row) {
     </template>
     <div class="page">
       <div class="page-head">
-        <h1>数据源</h1>
+        <div>
+          <p class="kicker">管理</p>
+          <h1>数据源</h1>
+          <p class="lede">把 SQLite 文件放到 data/sources，这里只填写文件名。服务以只读方式打开它。</p>
+        </div>
         <el-button type="primary" @click="openCreate">登记</el-button>
       </div>
-      <p class="hint">把 SQLite 文件放到 data/sources，这里只填写文件名。服务以只读方式打开它。</p>
-      <el-table :data="items" @row-click="(row) => router.push(`/admin/datasources/${row.id}`)">
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="fileName" label="文件名" />
-        <el-table-column label="状态">
-          <template #default="{ row }">{{ row.status === 1 ? '启用' : '停用' }}</template>
-        </el-table-column>
-        <el-table-column label="">
-          <template #default="{ row }">
-            <el-button link type="danger" @click.stop="remove(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-if="!items.length" class="empty-state">
+        <h2>还没有数据源</h2>
+        <p>登记文件名之后，可以为表和字段补注释。</p>
+      </div>
+      <div v-else class="card-grid">
+        <article v-for="row in items" :key="row.id" class="entity-card">
+          <router-link class="entity-link" :to="`/admin/datasources/${row.id}`">
+            <div class="entity-top">
+              <h2>{{ row.name }}</h2>
+              <span class="pill" :class="row.status === 1 ? 'ok' : 'off'">{{ row.status === 1 ? '启用' : '停用' }}</span>
+            </div>
+            <p class="meta mono">{{ row.fileName }}</p>
+          </router-link>
+          <el-button class="text-danger" link type="danger" @click="remove(row)">删除</el-button>
+        </article>
+      </div>
       <el-dialog v-model="dialog" title="登记数据源" width="480px">
         <el-form label-position="top">
           <el-form-item label="名称">
