@@ -245,6 +245,7 @@ onMounted(async () => {
         <el-tab-pane label="行级条件" name="filter">
           <p class="hint">{{ filterHelp }}</p>
           <el-input v-model="persona.rowFilter" type="textarea" :rows="4" class="stack-form" />
+          <p class="hint">当前条件：{{ persona.rowFilter || '（空）' }}</p>
           <div style="margin-top:12px">
             <el-button type="primary" :loading="saving" @click="saveFilter">保存行级条件</el-button>
           </div>
